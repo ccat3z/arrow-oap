@@ -681,7 +681,7 @@ const char* castVARCHAR_date32_int64(gdv_int64 context, gdv_date32 in_day,
   gdv_int64 month = extractMonth_timestamp(in);
   gdv_int64 day = extractDay_timestamp(in);
 
-  static const int kDateStringLen = 11;
+  static const int kDateStringLen = 13;               // YYYY maybe overflow
   const int char_buffer_length = kDateStringLen + 1;  // snprintf adds \0
   char char_buffer[char_buffer_length];
 
@@ -701,10 +701,7 @@ const char* castVARCHAR_date32_int64(gdv_int64 context, gdv_date32 in_day,
     return "";
   }
 
-  *out_len = static_cast<gdv_int32>(length);
-  if (*out_len > kDateStringLen) {
-    *out_len = kDateStringLen;
-  }
+  *out_len = static_cast<gdv_int32>(res);
 
   if (*out_len <= 0) {
     if (*out_len < 0) {

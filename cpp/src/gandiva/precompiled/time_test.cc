@@ -18,7 +18,11 @@
 #include <gtest/gtest.h>
 #include <time.h>
 
+#include <tuple>
+#include <vector>
+
 #include "../execution_context.h"
+#include "gandiva/gdv_function_stubs.h"
 #include "gandiva/precompiled/testing.h"
 #include "gandiva/precompiled/types.h"
 
@@ -778,6 +782,37 @@ TEST(TestTime, castVarcharDate) {
   date32 = castDATE32_date64(date64);
   out = castVARCHAR_date32_int64(context_ptr, date32, 10L, &out_len);
   EXPECT_EQ(std::string(out, out_len), "1967-12-01");
+}
+
+TEST(TestTime, castVarcharDateWithHugeDate) {
+  ExecutionContext context;
+  auto context_ptr = reinterpret_cast<int64_t>(&context);
+
+  // Year > 9999
+  std::vector<std::tuple<gdv_timestamp, std::string, std::string>> timestamp2dates = {
+      // Passing in a huge timestamp may be a mistake to pass in milliseconds as seconds.
+      // castVARCHAR(date) guarantee the correct format but the value may overflow.
+      // So some cases are skiped.
+      // {30000000000000ul, "952632-01-22", "9526320122"},
+      // {1656932979027ul, "54476-02-12", "544760212"},
+      // {1627282640731ul, "53536-07-14", "535360714"},
+      {652440000000ul, "22644-12-31", "226441231"},
+      {253402300800ul, "10000-01-01", "100000101"},
+  };
+
+  for (auto& [ts_in_sec, fmt10, fmt8] : timestamp2dates) {
+    gdv_int32 out_len;
+    gdv_date64 date64 = castDATE_timestamp(ts_in_sec * 1000);
+    gdv_date32 date32 = castDATE32_date64(date64);
+
+    // Test yyyy-MM-dd format
+    const char* out = castVARCHAR_date32_int64(context_ptr, date32, 10L, &out_len);
+    EXPECT_EQ(std::string(out, out_len), fmt10);
+
+    // Test yyyyMMdd format
+    out = castVARCHAR_date32_int64(context_ptr, date32, 8L, &out_len);
+    EXPECT_EQ(std::string(out, out_len), fmt8);
+  }
 }
 
 }  // namespace gandiva
